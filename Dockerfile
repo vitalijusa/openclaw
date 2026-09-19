@@ -426,6 +426,30 @@ RUN install -d -m 0755 -o node -g node /home/node/.config && \
 
 ENV NODE_ENV=production
 
+# Claude Code's npm package ships a no-shebang `bin/claude.exe` stub. postinstall
+# must copy the platform-native optional binary over that stub, otherwise Linux
+# execve returns "exec format error". Re-run install.cjs explicitly and refuse
+# to finish the image if the stub is still in place (overlayfs hardlink misses
+# during docker build are the usual cause).
+RUN npm install -g @anthropic-ai/claude-code --foreground-scripts && \
+    node /usr/local/lib/node_modules/@anthropic-ai/claude-code/install.cjs && \
+    test "$(stat -c%s /usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe)" -gt 4096 && \
+    claude --version
+
+# Bake gog CLI into the image. Runtime `docker compose exec` installs are lost
+# on rebuild because /usr/local/bin is not a volume.
+# Release assets: https://github.com/openclaw/gogcli/releases
+ARG GOGCLI_VERSION=0.40.0
+RUN arch="$(dpkg --print-architecture)" && \
+    case "$arch" in amd64|arm64) ;; *) echo "unsupported arch: $arch" >&2; exit 1 ;; esac && \
+    tmp="$(mktemp -d)" && \
+    curl -fsSL "https://github.com/openclaw/gogcli/releases/download/v${GOGCLI_VERSION}/gogcli_${GOGCLI_VERSION}_linux_${arch}.tar.gz" \
+      -o "$tmp/gogcli.tar.gz" && \
+    tar -xzf "$tmp/gogcli.tar.gz" -C "$tmp" && \
+    install -m 0755 "$tmp/gog" /usr/local/bin/gog && \
+    rm -rf "$tmp" && \
+    gog --version
+
 # Security hardening: Run as non-root user
 # The node:24-bookworm image includes a 'node' user (uid 1000)
 # This reduces the attack surface by preventing container escape via root privileges
