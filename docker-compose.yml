@@ -39,6 +39,12 @@ services:
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-}
       OTEL_SEMCONV_STABILITY_OPT_IN: ${OTEL_SEMCONV_STABILITY_OPT_IN:-}
       OPENCLAW_OTEL_PRELOADED: ${OPENCLAW_OTEL_PRELOADED:-}
+      # Linux gog cannot read macOS Keychain. Use an encrypted file keyring
+      # under the already-persisted OpenClaw home.
+      GOG_HOME: /home/node/.openclaw/gogcli
+      GOG_KEYRING_BACKEND: file
+      GOG_KEYRING_PASSWORD: ${GOG_KEYRING_PASSWORD:-}
+      GOG_ACCOUNT: ${GOG_ACCOUNT:-}
       CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY:-}
       CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY:-}
       CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE:-}
@@ -47,6 +53,11 @@ services:
       - "${OPENCLAW_CONFIG_DIR:-${HOME:-/tmp}/.openclaw}:/home/node/.openclaw"
       - "${OPENCLAW_WORKSPACE_DIR:-${HOME:-/tmp}/.openclaw/workspace}:/home/node/.openclaw/workspace"
       - "${OPENCLAW_AUTH_PROFILE_SECRET_DIR:-${HOME:-/tmp}/.openclaw-auth-profile-secrets}:/home/node/.config/openclaw"
+      # Claude CLI login lives in ~/.claude/.credentials.json (Linux) plus ~/.claude.json.
+      # These must be real host files/dirs created before `compose up`, or Docker
+      # creates a directory at .claude.json and auth never persists.
+      - "${OPENCLAW_CONFIG_DIR:-${HOME:-/tmp}/.openclaw}/claude-cli/.claude:/home/node/.claude"
+      - "${OPENCLAW_CONFIG_DIR:-${HOME:-/tmp}/.openclaw}/claude-cli/.claude.json:/home/node/.claude.json"
       ## Uncomment the lines below to enable sandbox isolation
       ## (agents.defaults.sandbox). Requires Docker CLI in the image
       ## (build with --build-arg OPENCLAW_INSTALL_DOCKER_CLI=1) or use
@@ -123,10 +134,16 @@ services:
       CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY:-}
       CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE:-}
       TZ: ${OPENCLAW_TZ:-UTC}
+      GOG_HOME: /home/node/.openclaw/gogcli
+      GOG_KEYRING_BACKEND: file
+      GOG_KEYRING_PASSWORD: ${GOG_KEYRING_PASSWORD:-}
+      GOG_ACCOUNT: ${GOG_ACCOUNT:-}
     volumes:
       - "${OPENCLAW_CONFIG_DIR:-${HOME:-/tmp}/.openclaw}:/home/node/.openclaw"
       - "${OPENCLAW_WORKSPACE_DIR:-${HOME:-/tmp}/.openclaw/workspace}:/home/node/.openclaw/workspace"
       - "${OPENCLAW_AUTH_PROFILE_SECRET_DIR:-${HOME:-/tmp}/.openclaw-auth-profile-secrets}:/home/node/.config/openclaw"
+      - "${OPENCLAW_CONFIG_DIR:-${HOME:-/tmp}/.openclaw}/claude-cli/.claude:/home/node/.claude"
+      - "${OPENCLAW_CONFIG_DIR:-${HOME:-/tmp}/.openclaw}/claude-cli/.claude.json:/home/node/.claude.json"
     stdin_open: true
     tty: true
     init: true
